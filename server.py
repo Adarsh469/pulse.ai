@@ -285,9 +285,21 @@ def explain(session_id: str = "default") -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 import json
+import logging
 import time as _time
 
-FEEDBACK_FILE = Path(__file__).parent / "feedback_log.jsonl"
+# Configure structured logging for production
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+# Persist feedback inside the Docker named volume (feedback_data:/app/feedback_data)
+FEEDBACK_DATA_DIR = Path(__file__).parent / "feedback_data"
+FEEDBACK_DATA_DIR.mkdir(parents=True, exist_ok=True)
+FEEDBACK_FILE = FEEDBACK_DATA_DIR / "feedback_log.jsonl"
 
 
 class FeedbackRequest(BaseModel):

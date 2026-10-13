@@ -10,11 +10,8 @@ RUN npm ci
 # Copy source
 COPY . .
 
-# Build — NEXT_PUBLIC_API_URL is baked in at build time
-# Override via --build-arg if deploying to a different host
-ARG NEXT_PUBLIC_API_URL=http://backend:7860
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-
+# Build — in production, lib/api.ts uses /api (the proxy path) automatically.
+# No NEXT_PUBLIC_API_URL needed: browser calls /api/*, nginx routes to backend.
 RUN npm run build
 
 # ── Stage 2: Production image ────────────────────────────────────────────────

@@ -51,6 +51,9 @@ export const triageApi = {
     explain: (sessionId = "default") =>
         api<ExplainData>(`/explain?session_id=${sessionId}`),
 
+    learnedHeuristics: () =>
+        api<{ heuristics: Record<string, { avg_esi: number; count: number; correct_rate: number }> }>("/learned_heuristics"),
+
     feedbackStats: () =>
         api<{ total: number; avg_reward: number | null }>("/feedback/stats"),
 

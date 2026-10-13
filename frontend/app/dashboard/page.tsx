@@ -27,15 +27,14 @@ const TASKS: { id: TaskId; label: string; badge: string; color: string }[] = [
     { id: "task3_ambiguous_triage", label: "Ambiguous Triage", badge: "Hard", color: "#ff6b00" },
 ];
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7860";
 const SESSION = "frontend-user";
+
 
 // ─── learning helpers ─────────────────────────────────────────────────────────
 
 async function fetchLearnedHeuristics(): Promise<Record<string, { avg_esi: number; count: number; correct_rate: number }>> {
     try {
-        const res = await fetch(`${API}/learned_heuristics`);
-        const data = await res.json();
+        const data = await triageApi.learnedHeuristics();
         return data.heuristics ?? {};
     } catch { return {}; }
 }

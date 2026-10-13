@@ -1,0 +1,75 @@
+# ── docker-compose.override.aws.yml ──────────────────────────────────────────
+# AWS-specific overrides: CloudWatch log driver for all services.
+#
+# USAGE:
+#   docker compose -f docker-compose.yml -f docker-compose.override.aws.yml up -d
+#
+# PREREQUISITES:
+#   1. EC2 instance must have an IAM role with logs:CreateLogGroup,
+#      logs:CreateLogStream, logs:PutLogEvents permissions.
+#   2. Create log groups first (or set awslogs-create-group: "true" below).
+#   3. Set AWS_REGION in .env or export it before running.
+#
+# CloudWatch log groups created:
+#   /triage/backend
+#   /triage/frontend
+#   /triage/nginx
+
+services:
+  backend:
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-group: /triage/backend
+        awslogs-stream: backend
+        awslogs-create-group: "true"
+        tag: "backend-{{.ID}}"
+
+  frontend:
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-group: /triage/frontend
+        awslogs-stream: frontend
+        awslogs-create-group: "true"
+        tag: "frontend-{{.ID}}"
+
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Certbot-managed certs (populated by certbot service after first issuance)
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION:-us-east-1}"
+        awslogs-group: /triage/nginx
+        awslogs-stream: nginx
+        awslogs-create-group: "true"
+        tag: "nginx-{{.ID}}"
+
+  # ── Certbot — auto-renews Let's Encrypt certificate ──────────────────────────
+  certbot:
+    image: certbot/certbot:latest
+    container_name: triage-certbot
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    # Renews every 12 hours; Certbot only acts when cert is within 30 days of expiry
+    entrypoint: >
+      /bin/sh -c "trap exit INT TERM; while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet;
+        sleep 12h &
+        wait $${!};
+      done"
+    restart: unless-stopped
+
+volumes:
+  certbot_certs:
+  certbot_webroot:

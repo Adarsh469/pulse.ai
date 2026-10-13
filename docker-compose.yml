@@ -5,15 +5,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    # When ECR_REGISTRY is set (AWS deploy), pull pre-built image instead of building.
+    # Unset → local build. Set → ECR pull.
+    image: ${ECR_REGISTRY:+${ECR_REGISTRY}/triage-backend:${IMAGE_TAG:-latest}}
     container_name: triage-backend
-    ports:
-      - "7860:7860"
+    expose:
+      - "7860"
     environment:
       - PYTHONUNBUFFERED=1
-      # Pass your HF token: HF_TOKEN=xxx docker compose up
       - HF_TOKEN=${HF_TOKEN:-}
+      - DEFAULT_TASK=${DEFAULT_TASK:-task1_esi_assignment}
     volumes:
-      # Persist the learning feedback log between container restarts
+      # Persist feedback log between container restarts
       - feedback_data:/app/feedback_data
     restart: unless-stopped
     healthcheck:
@@ -23,23 +26,51 @@ services:
       start_period: 25s
       retries: 3
 
-  # ── Frontend (Next.js) ──────────────────────────────────────────────────────
+  # ── Frontend (Next.js standalone) ──────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: ${ECR_REGISTRY:+${ECR_REGISTRY}/triage-frontend:${IMAGE_TAG:-latest}}
     container_name: triage-frontend
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       - NODE_ENV=production
-      # Server-side: Next.js rewrites proxy /api/* → backend:7860 internally
-      # The browser never needs to know this URL — it always calls /api/* on port 3000.
+      # Server-side rewrite: Next.js rewrites /api/* → backend:7860 internally.
+      # The browser always calls /api/* on port 80 (via nginx).
       - BACKEND_URL=http://backend:7860
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))" ]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+
+  # ── Nginx reverse proxy ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: triage-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost/api/health" ]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
 
 volumes:
   feedback_data:
