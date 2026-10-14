@@ -85,23 +85,16 @@ export default function HomePage() {
             >
               Launch Triage Dashboard
             </Link>
-            <a
-              href="https://github.com/Adarsh469/meta_hackathon"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-8 py-3.5 rounded-2xl border border-slate-900/10 text-slate-600 hover:text-slate-900 hover:border-slate-900/20 font-medium text-base transition-all"
-            >
-              View on GitHub
-            </a>
+           
           </div>
         </div>
 
         {/* floating stat cards */}
-        <div className="mt-20 mx-auto max-w-3xl grid grid-cols-3 gap-4">
+        <div className="mt-20 mx-auto max-w-2xl grid grid-cols-2 gap-4">
           {[
             { value: "500", label: "Synthetic Cases", sub: "medical_triage_500.jsonl" },
             { value: "3", label: "Distinct Tasks", sub: "Easy → Medium → Hard" },
-            { value: "0.57", label: "Baseline Score", sub: "Qwen2.5-72B" },
+            
           ].map((stat) => (
             <div key={stat.value} className="glass p-5 text-center">
               <div className="text-3xl font-bold gradient-text">{stat.value}</div>
