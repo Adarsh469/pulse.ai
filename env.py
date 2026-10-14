@@ -344,8 +344,10 @@ class ClinicalTriageEnv:
             for esi in sorted(by_esi.keys()):
                 if len(selected) < 5 and by_esi[esi]:
                     selected.append(self._rng.choice(by_esi[esi]))
-            while len(selected) < 5:
-                selected.append(self._rng.choice(cases))
+            chosen_ids = {c.case_id for c in selected}
+            remaining = [c for c in cases if c.case_id not in chosen_ids]
+            self._rng.shuffle(remaining)
+            selected.extend(remaining[: 5 - len(selected)])
             self._queue_cases = selected[:5]
             self._rng.shuffle(self._queue_cases)  # shuffle presentation order
 
