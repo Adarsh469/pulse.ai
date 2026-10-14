@@ -12,6 +12,12 @@ license: mit
 # ClinicalTriage-Env 🏥
 
 An Emergency Department triage simulator for AI agent evaluation.
+## 🔴 Live Demo
+
+**https://clinicaltriage-pulse.duckdns.org**
+
+Hosted on AWS EC2 (Docker Compose: FastAPI + Next.js + Nginx, HTTPS via Let's Encrypt).
+Try **Human Mode** to triage patients yourself, or **AI Agent** mode to watch the agent work.
 
 ---
 
@@ -32,6 +38,25 @@ HF will automatically detect the `Dockerfile` and build the image.
 ### 3. Set secrets (optional — only needed for LLM calls)
 - Space → **Settings → Variables and secrets**
 - Add: `HF_TOKEN` = `hf_xxxx...`
+
+## AWS EC2 Deployment
+
+Production runs on a single EC2 instance (Amazon Linux 2023, t3.micro) with Docker Compose.
+
+```bash
+ssh -i pulse-ai-key.pem ec2-user@<server-ip>
+cd /opt/triage
+git pull origin main
+docker compose up -d --build
+```
+
+- **Services:** `backend` (FastAPI, :7860), `frontend` (Next.js, :3000), `nginx` (reverse proxy, :80/:443). All use `restart: unless-stopped`, so the app survives reboots.
+- **Networking:** Elastic IP, security group allows 80/443 publicly and SSH only from the admin IP.
+- **HTTPS:** Let's Encrypt via certbot (standalone). Renew before expiry, about every 60 days:
+```bash
+  docker compose stop nginx && docker run --rm -p 80:80 -v /opt/triage/certbot/etc:/etc/letsencrypt certbot/certbot renew && docker compose up -d nginx
+```
+- More detail in `DEPLOYMENT.md`.
 
 The Gradio app will be live on port 7860 once the build finishes (~3–5 min).
 
@@ -89,6 +114,10 @@ cd frontend && npm run dev
 Full docs: `/docs` (Swagger UI)
 
 ## Recent Updates
+- Deployed to AWS EC2 with Docker Compose, Nginx and HTTPS
+- Fixed duplicate patients appearing in the Queue Priority (Medium) task
+- AI Agent score now appears only after the queue-sorting animation finishes
+- Redesigned dashboard with a light-mode medical theme and animated queue reordering
 - Redesigned dashboard with a light-mode medical/doctor theme
 - Added Pulse AI logo (clickable, links to home) on all dashboard pages
 - Removed MetaHackathon/OpenEnv references
