@@ -10,9 +10,11 @@ interface Props {
     finalOrder: PatientSummary[];     // agent's sorted order (animate toward this)
     isAnimating: boolean;
     disabled?: boolean;
+    onComplete?: () => void;
+    
 }
 
-export function AnimatedQueue({ patients, finalOrder, isAnimating }: Props) {
+export function AnimatedQueue({ patients, finalOrder, isAnimating, onComplete }: Props) {
     // displayOrder is the single source of truth for what's shown
     const [displayOrder, setDisplayOrder] = useState<PatientSummary[]>(patients);
     const [activeIdx, setActiveIdx] = useState<number | null>(null);
@@ -56,6 +58,7 @@ export function AnimatedQueue({ patients, finalOrder, isAnimating }: Props) {
         if (steps.length === 0) {
             setDisplayOrder([...finalOrder]);
             isRunningRef.current = false;
+            onComplete?.();
             return;
         }
 
@@ -67,6 +70,7 @@ export function AnimatedQueue({ patients, finalOrder, isAnimating }: Props) {
                 setDisplayOrder([...finalOrder]);
                 setActiveIdx(null);
                 isRunningRef.current = false;
+                onComplete?.();
                 return;
             }
             const [a, b] = steps[stepIdx];

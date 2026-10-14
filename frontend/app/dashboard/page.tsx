@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
     ShieldPlusIcon, PlayIcon, UserIcon, BotIcon,
@@ -184,6 +184,9 @@ export default function DashboardPage() {
     const [error, setError] = useState<string | null>(null);
     const [stats, setStats] = useState<{ total: number; avg_reward: number | null }>({ total: 0, avg_reward: null });
 
+    const animDoneRef = useRef(true);
+    const pendingResultRef = useRef<{ score: number; obs: any } | null>(null);
+
     const addChatMsg = useCallback((msg: ChatMessage) => setAgentChatMessages((prev) => [...prev, msg]), []);
 
     useEffect(() => {
@@ -294,31 +297,46 @@ export default function DashboardPage() {
     };
 
     // ── AI agent ─────────────────────────────────────────────────────────────
+      const revealResult = async () => {
+        const pending = pendingResultRef.current;
+        if (!pending || !animDoneRef.current) return;   // wait until BOTH are ready
+        pendingResultRef.current = null;
+        setObs(pending.obs);
+        setScore(pending.score);
+        setEpisodeDone(true);
+        await fetchExplanation(SESSION + "-ai", pending.score);
+    };
+
     const handleRunAgent = async () => {
         resetEpisodeState();
         setObs(null);
         setAgentRunning(true);
+        pendingResultRef.current = null;
+        animDoneRef.current = true;
         try {
             await runAIAgent(
                 taskId,
                 (newObs) => setObs(newObs),
                 (initial, final) => {
+                    animDoneRef.current = false;      // animation starting
                     setInitialQueueForAnim(initial);
                     setSortedQueue(final);
                     setIsQueueAnimating(true);
-                    // Stop animation flag after animation completes (~3s)
-                    setTimeout(() => setIsQueueAnimating(false), 4000);
                 },
                 addChatMsg,
                 async (finalScore, finalObs) => {
-                    setScore(finalScore);
-                    setEpisodeDone(true);
-                    setObs(finalObs);
-                    await fetchExplanation(SESSION + "-ai", finalScore);
+                    pendingResultRef.current = { score: finalScore, obs: finalObs };
+                    await revealResult();             // reveals now only if animation already finished
                 },
             );
         } catch (e: unknown) { setError(String(e)); }
         finally { setAgentRunning(false); }
+    };
+
+    const handleQueueAnimComplete = () => {
+        animDoneRef.current = true;
+        setIsQueueAnimating(false);
+        revealResult();
     };
 
     const currentTask = TASKS.find((t) => t.id === taskId)!;
@@ -472,6 +490,7 @@ export default function DashboardPage() {
                                             patients={initialQueueForAnim.length ? initialQueueForAnim : (obs?.queue ?? [])}
                                             finalOrder={sortedQueue}
                                             isAnimating={isQueueAnimating}
+                                            onComplete={handleQueueAnimComplete}
                                         />
                                     ) : (
                                         <QueueReorder
